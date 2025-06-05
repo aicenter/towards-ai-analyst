@@ -1,3 +1,8 @@
+# %%
+
+import sys
+sys.path.append("../..")
+
 import math
 from datetime import datetime
 from zipfile import ZipFile
@@ -6,6 +11,8 @@ import numpy as np
 import polars as pl
 
 from src import DATA_DIR
+
+# %%
 
 ######################################################################################
 ###                               Data preprocessing                               ###
@@ -25,8 +32,6 @@ df = (
     .drop("product")
 )
 
-df_lazy = df.lazy()
-
 df = (
     df.with_row_index("id")
     .with_columns(pl.col("EntryDate").str.strptime(pl.Datetime, "%F %T", strict=False).alias("datetime"))
@@ -43,6 +48,7 @@ df = df.with_columns(
 
 df.write_parquet(DATA_DIR / "amaretto.pq")
 
+# %%
 
 ######################################################################################
 ###                               Feature engineering                              ###
@@ -50,6 +56,8 @@ df.write_parquet(DATA_DIR / "amaretto.pq")
 
 df = pl.read_parquet(DATA_DIR / "amaretto.pq")
 df = df.with_columns(pl.lit(1).alias("ones"))
+
+df = df.lazy()
 
 
 index_columns = ["originator_index", "market_index", "product_type_index", "product_class_index"]
@@ -76,10 +84,10 @@ df = df.with_columns(
     *[pl.col("datetime").dt.timestamp().diff(n=n).over("market_index", "InputOutput").alias(f"market_index_timestamp_diff_{n}") for n in range(1, 6)],
     *[pl.col("datetime").dt.timestamp().diff(n=n).over("product_type_index", "InputOutput").alias(f"product_type_index_timestamp_diff_{n}") for n in range(1, 6)],
     *[pl.col("datetime").dt.timestamp().diff(n=n).over("product_class_index", "InputOutput").alias(f"product_class_index_timestamp_diff_{n}") for n in range(1, 6)],
-    pl.col("amount").diff(n=1).over("originator_index", "InputOutput").alias(f"originator_index_amount_diff_1"),
-    pl.col("amount").diff(n=1).over("market_index", "InputOutput").alias(f"market_index_amount_diff_1"),
-    pl.col("amount").diff(n=1).over("product_type_index", "InputOutput").alias(f"product_type_index_amount_diff_1"),
-    pl.col("amount").diff(n=1).over("product_class_index", "InputOutput").alias(f"product_class_index_amount_diff_1"),
+    pl.col("amount").diff(n=1).over("originator_index", "InputOutput").alias("originator_index_amount_diff_1"),
+    pl.col("amount").diff(n=1).over("market_index", "InputOutput").alias("market_index_amount_diff_1"),
+    pl.col("amount").diff(n=1).over("product_type_index", "InputOutput").alias("product_type_index_amount_diff_1"),
+    pl.col("amount").diff(n=1).over("product_class_index", "InputOutput").alias("product_class_index_amount_diff_1"),
 )
 
 df = df.with_columns(
@@ -151,12 +159,50 @@ cat_columns = ["InputOutput", "Market", "Product Type", "Product Class", "Curren
 df = df.with_columns([pl.col(col).cum_count().over(col, "Originator").alias(f"cumcount_{col}") for col in cat_columns]).with_columns(
     *[(pl.col(f"cumcount_{col}") / (1 + pl.col("originator_index"))).alias(f"{col}_freq_originator") for col in cat_columns],
 )
-
-
-df = df.to_dummies(["InputOutput", "Market", "Product Type", "Product Class", "Currency"])
 df = df.with_columns(np.log1p(pl.col("amount")).alias("amount_log"))
 
-
+prior_columns_1 = [
+    "id",
+    "Originator",
+    "Anomaly",
+    "day_of_week",
+    "day_of_month",
+    "hour",
+    "minute",
+    "amount_log",
+    "InputOutput", "Market", "Product Type", "Product Class", "Currency",
+]
+prior_columns_2 = [
+    "InputOutput_Buy",
+    "InputOutput_Sell",
+    "Market_1",
+    "Market_2",
+    "Market_3",
+    "Market_4",
+    "Product Type_ADR",
+    "Product Type_Bond",
+    "Product Type_CAADR",
+    "Product Type_ETOEquity",
+    "Product Type_ETOEquityIndex",
+    "Product Type_Equity",
+    "Product Type_FX",
+    "Product Type_FXForward",
+    "Product Type_FXSwap",
+    "Product Type_FutureBond",
+    "Product Type_FutureCommodity",
+    "Product Type_FutureEquity",
+    "Product Type_FutureEquityIndex",
+    "Product Type_FutureFX",
+    "Product Type_FutureOptionEquityIndex",
+    "Product Type_Repo",
+    "Product Type_SimpleTransfer",
+    "Product Class_ADR Conversion",
+    "Product Class_Cash in / out (withdrawal), Security in / out",
+    "Product Class_External fee",
+    "Product Class_Trade",
+    "Currency_1",
+    "Currency_2",
+]
 prior_columns = [
     "id",
     "Originator",
@@ -188,156 +234,19 @@ prior_columns = [
     "Product Class_Cash in / out (withdrawal), Security in / out",
     "Product Class_External fee",
     "Product Class_Trade",
-    # 'amount',
     "Currency_1",
     "Currency_2",
-    # 'Anomaly',
-    # 'datetime',
-    # 'originator_index',
-    # 'market_index',
-    # 'product_type_index',
-    # 'product_class_index',
-    # 'is_rounded',
-    # 'originator_index_timestamp_diff_0',
-    # 'originator_index_timestamp_diff_1',
-    # 'originator_index_timestamp_diff_2',
-    # 'originator_index_timestamp_diff_3',
-    # 'originator_index_timestamp_diff_4',
-    # 'market_index_timestamp_diff_0',
-    # 'market_index_timestamp_diff_1',
-    # 'market_index_timestamp_diff_2',
-    # 'market_index_timestamp_diff_3',
-    # 'market_index_timestamp_diff_4',
-    # 'product_type_index_timestamp_diff_0',
-    # 'product_type_index_timestamp_diff_1',
-    # 'product_type_index_timestamp_diff_2',
-    # 'product_type_index_timestamp_diff_3',
-    # 'product_type_index_timestamp_diff_4',
-    # 'product_class_index_timestamp_diff_0',
-    # 'product_class_index_timestamp_diff_1',
-    # 'product_class_index_timestamp_diff_2',
-    # 'product_class_index_timestamp_diff_3',
-    # 'product_class_index_timestamp_diff_4',
-    # 'originator_index_amount_diff_1',
-    # 'market_index_amount_diff_1',
-    # 'product_type_index_amount_diff_1',
-    # 'product_class_index_amount_diff_1',
     "day_of_week",
     "day_of_month",
     "hour",
     "minute",
-    # 'days_in_month',
-    # 'day_of_week_sin',
-    # 'day_of_week_cos',
-    # 'day_of_month_sin',
-    # 'day_of_month_cos',
-    # 'hour_sin',
-    # 'hour_cos',
-    # 'minute_sin',
-    # 'minute_cos',
-    # 'ones',
-    # 'rolling_mean_1h',
-    # 'rolling_mean_12h',
-    # 'rolling_mean_24h',
-    # 'rolling_mean_7d',
-    # 'rolling_sum_1h',
-    # 'rolling_sum_12h',
-    # 'rolling_sum_24h',
-    # 'rolling_sum_7d',
-    # 'rolling_std_1h',
-    # 'rolling_std_12h',
-    # 'rolling_std_24h',
-    # 'rolling_std_7d',
-    # 'rolling_max_1h',
-    # 'rolling_max_12h',
-    # 'rolling_max_24h',
-    # 'rolling_max_7d',
-    # 'rolling_min_1h',
-    # 'rolling_min_12h',
-    # 'rolling_min_24h',
-    # 'rolling_min_7d',
-    # 'rolling_n_transactions_1h',
-    # 'rolling_n_transactions_12h',
-    # 'rolling_n_transactions_24h',
-    # 'rolling_n_transactions_7d',
-    # 'rolling_mean_originator_1h',
-    # 'rolling_mean_originator_12h',
-    # 'rolling_mean_originator_24h',
-    # 'rolling_mean_originator_7d',
-    # 'rolling_std_originator_1h',
-    # 'rolling_std_originator_12h',
-    # 'rolling_std_originator_24h',
-    # 'rolling_std_originator_7d',
-    # 'rolling_max_originator_1h',
-    # 'rolling_max_originator_12h',
-    # 'rolling_max_originator_24h',
-    # 'rolling_max_originator_7d',
-    # 'rolling_min_originator_1h',
-    # 'rolling_min_originator_12h',
-    # 'rolling_min_originator_24h',
-    # 'rolling_min_originator_7d',
-    # 'rolling_sum_originator_1h',
-    # 'rolling_sum_originator_12h',
-    # 'rolling_sum_originator_24h',
-    # 'rolling_sum_originator_7d',
-    # 'rolling_n_transactions_originator_1h',
-    # 'rolling_n_transactions_originator_12h',
-    # 'rolling_n_transactions_originator_24h',
-    # 'rolling_n_transactions_originator_7d',
-    # 'cumcount_InputOutput',
-    # 'cumcount_Market',
-    # 'cumcount_Product Type',
-    # 'cumcount_Product Class',
-    # 'cumcount_Currency',
-    # 'InputOutput_freq_originator',
-    # 'Market_freq_originator',
-    # 'Product Type_freq_originator',
-    # 'Product Class_freq_originator',
-    # 'Currency_freq_originator',
     "amount_log",
 ]
-
 
 costly_features_columns = [
     "id",
     "Originator",
     "Anomaly",
-    # 'InputOutput_Buy',
-    # 'InputOutput_Sell',
-    # 'Market_1',
-    # 'Market_2',
-    # 'Market_3',
-    # 'Market_4',
-    # 'Product Type_ADR',
-    # 'Product Type_Bond',
-    # 'Product Type_CAADR',
-    # 'Product Type_ETOEquity',
-    # 'Product Type_ETOEquityIndex',
-    # 'Product Type_Equity',
-    # 'Product Type_FX',
-    # 'Product Type_FXForward',
-    # 'Product Type_FXSwap',
-    # 'Product Type_FutureBond',
-    # 'Product Type_FutureCommodity',
-    # 'Product Type_FutureEquity',
-    # 'Product Type_FutureEquityIndex',
-    # 'Product Type_FutureFX',
-    # 'Product Type_FutureOptionEquityIndex',
-    # 'Product Type_Repo',
-    # 'Product Type_SimpleTransfer',
-    # 'Product Class_ADR Conversion',
-    # 'Product Class_Cash in / out (withdrawal), Security in / out',
-    # 'Product Class_External fee',
-    # 'Product Class_Trade',
-    # # 'amount',
-    # 'Currency_1',
-    # 'Currency_2',
-    # # 'Anomaly',
-    # # 'datetime',
-    # # 'originator_index',
-    # # 'market_index',
-    # # 'product_type_index',
-    # # 'product_class_index',
     "is_rounded",
     # np.log1p(pl.col('originator_index_timestamp_diff_0').fill_null(0)),
     np.log1p(pl.col("originator_index_timestamp_diff_1").fill_null(0)),
@@ -367,11 +276,6 @@ costly_features_columns = [
     np.sign(pl.col("market_index_amount_diff_1").fill_null(0)) * np.log1p(pl.col("market_index_amount_diff_1").fill_null(0).abs()),
     np.sign(pl.col("product_type_index_amount_diff_1").fill_null(0)) * np.log1p(pl.col("product_type_index_amount_diff_1").fill_null(0).abs()),
     np.sign(pl.col("product_class_index_amount_diff_1").fill_null(0)) * np.log1p(pl.col("product_class_index_amount_diff_1").fill_null(0).abs()),
-    # 'day_of_week',
-    # 'day_of_month',
-    # 'hour',
-    # 'minute',
-    # 'days_in_month',
     "day_of_week_sin",
     "day_of_week_cos",
     "day_of_month_sin",
@@ -439,36 +343,35 @@ costly_features_columns = [
     np.log1p(pl.col("Product Type_freq_originator").fill_null(0)),
     np.log1p(pl.col("Product Class_freq_originator").fill_null(0)),
     np.log1p(pl.col("Currency_freq_originator").fill_null(0)),
-    # 'amount_log',
 ]
 
 ######################################################################################
 ###                    Write prior and costly features parquets                    ###
 ######################################################################################
 
-# write the prior and costly features parquests
-df.select(prior_columns).write_parquet(DATA_DIR / "prior.pq")
-df.select(costly_features_columns).write_parquet(DATA_DIR / "costly_features.pq")
-
-prior = df.select(prior_columns).lazy()
-costly_features = df.select(costly_features_columns).lazy()
+amaretto_path = DATA_DIR / 'amaretto'
+amaretto_path.mkdir(exist_ok=True)
 
 # create time split into train, validation, test sets
-import random
-from datetime import datetime
-
 df = df.with_columns(pl.when(pl.col("datetime") < datetime(2019, 3, 1)).then(pl.lit(0)).when(pl.col("datetime") > datetime(2019, 3, 15)).then(pl.lit(2)).otherwise(pl.lit(1)).alias("split"))
 
-train_indexes = df.filter(pl.col("split") == 0)["id"].to_list()
-val_indexes = df.filter(pl.col("split") == 1)["id"].to_list()
-test_indexes = df.filter(pl.col("split") == 2)["id"].to_list()
-
 for i, split in enumerate(["train", "val", "test"]):
-    indexes = df.filter(pl.col("split") == i)["id"].to_list()
+    indexes = df.filter(pl.col("split") == i).select("id").collect()["id"].to_list()
 
-    df.filter(pl.col("id").is_in(indexes)).sort("id").select(prior_columns).write_parquet(DATA_DIR / f"amaretto/{split}_prior.pq")
-    df.filter(pl.col("id").is_in(indexes)).sort("id").select(costly_features_columns).write_parquet(DATA_DIR / f"amaretto/{split}_costly_features.pq")
+    df_prior = (
+        df
+        .filter(pl.col("id").is_in(indexes))
+        .sort("id")
+        .select(prior_columns_1)
+        .collect()
+        .to_dummies(["InputOutput", "Market", "Product Type", "Product Class", "Currency"])
+        .select(prior_columns)
+        .write_parquet(DATA_DIR / f"amaretto/{split}_prior.pq")
+    )
+    df.filter(pl.col("id").is_in(indexes)).sort("id").select(costly_features_columns).collect().write_parquet(DATA_DIR / f"amaretto/{split}_costly_features.pq")
 
 
-df.select(prior_columns).write_parquet(DATA_DIR / "amaretto/prior.pq")
-df.select(costly_features_columns).write_parquet(DATA_DIR / "amaretto/costly_features.pq")
+df.select(prior_columns_1).collect().to_dummies(["InputOutput", "Market", "Product Type", "Product Class", "Currency"]).select(prior_columns).write_parquet(DATA_DIR / "amaretto/prior.pq")
+df.select(costly_features_columns).sink_parquet(DATA_DIR / "amaretto/costly_features.pq")
+
+# %%
