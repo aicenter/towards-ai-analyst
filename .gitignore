@@ -1,3 +1,4 @@
 local_caches/*
 /.venv
 *__pycache__
+.DS_Store*
