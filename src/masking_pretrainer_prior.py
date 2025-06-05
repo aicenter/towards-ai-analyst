@@ -1,3 +1,6 @@
+# This code builds upon original DIME implementation.
+# Original source: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME).
+
 import pytorch_lightning as pl
 import torch
 import torch.optim as optim

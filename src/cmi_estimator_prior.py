@@ -1,3 +1,6 @@
+# This code builds upon original DIME implementation.
+# Original source: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME).
+
 import numpy as np
 import pytorch_lightning as pl
 import torch

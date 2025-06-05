@@ -13,7 +13,7 @@ The following files in this directory reuse and adapt code from the original DIM
 - `masking_pretrainer.py`
 - `models.py`
 
-Original source: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME)
+Original source: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME).
 
 ### License
 
@@ -22,8 +22,8 @@ The original DIME implementation is licensed under the Apache License 2.0. Our a
 ### References
 
 For more information on the original methodology, please see:
-- Original paper: 
-- Original repository: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME)
+- Original paper: [Estimating Conditional Mutual Information for Dynamic Feature Selection](https://arxiv.org/abs/2306.03301).
+- Original repository: [https://github.com/suinleelab/DIME](https://github.com/suinleelab/DIME).
 
 ## Modifications
 
